@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
+import 'create_recipe_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,45 +45,21 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Colors.brown.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Center(
-                  child: Text('🐕‍🦺', style: TextStyle(fontSize: 120)),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                "Sketty's Table",
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF8B4513),
-                ),
-              ),
-              const SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8B4513),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 50,
-                    vertical: 15,
-                  ),
-                ),
-                child: const Text('Enter', style: TextStyle(fontSize: 18)),
-              ),
-            ],
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateRecipeScreen()),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF8B4513),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+          ),
+          child: const Text(
+            'Create New Recipe',
+            style: TextStyle(fontSize: 18),
           ),
         ),
       ),
