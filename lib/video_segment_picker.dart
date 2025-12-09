@@ -26,7 +26,9 @@ class _VideoSegmentPickerState extends State<VideoSegmentPicker> {
       _urlController.text = widget.existingSegment!.url;
       _startTime = widget.existingSegment!.startTimeSeconds;
       _endTime = widget.existingSegment!.endTimeSeconds;
-      _initializePlayer(widget.existingSegment!.url);
+      // 🛑 REMOVED: Initializing the player here caused the issue
+      // because it ran before the UI was fully set up.
+      // We now rely on the user tapping "Load" or the controller's onReady state.
     }
   }
 
@@ -43,19 +45,43 @@ class _VideoSegmentPickerState extends State<VideoSegmentPicker> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Invalid YouTube URL')));
+      _playerController?.close();
+      setState(() => _isPlayerReady = false);
       return;
     }
 
-    _playerController = YoutubePlayerController.fromVideoId(
+    // 🛑 RULE #1 IMPLEMENTATION: Always start at 0 seconds (0.0).
+    const initialStartSeconds = 0.0;
+
+    // 1. Create the controller
+    final controller = YoutubePlayerController.fromVideoId(
       videoId: videoId,
       autoPlay: false,
+      startSeconds: initialStartSeconds, // Set to 0.0
       params: const YoutubePlayerParams(
         showControls: true,
         showFullscreenButton: true,
       ),
     );
 
-    setState(() => _isPlayerReady = true);
+    // 2. Set the controller and ready state
+    setState(() {
+      _playerController = controller;
+      _isPlayerReady = true;
+    });
+
+    // 3. Keep the stability hack: Pause after 500ms to clear the initial buffer stall.
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (_playerController != null) {
+        _playerController!.pauseVideo();
+      }
+    });
+
+    // 4. Load saved times into state (if available) for the Mark buttons to display.
+    if (widget.existingSegment != null) {
+      _startTime = widget.existingSegment!.startTimeSeconds;
+      _endTime = widget.existingSegment!.endTimeSeconds;
+    }
   }
 
   Future<void> _markStart() async {

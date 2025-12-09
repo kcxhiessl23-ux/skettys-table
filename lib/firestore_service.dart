@@ -11,11 +11,13 @@ class FirestoreService {
 
   // Load all recipes
   Future<List<Recipe>> loadRecipes() async {
-    final snapshot = await _db
-        .collection('recipes')
-        .orderBy('createdAt', descending: true)
-        .get();
-    return snapshot.docs.map((doc) => Recipe.fromMap(doc.data())).toList();
+    final snapshot = await _db.collection('recipes').get();
+    final recipes = snapshot.docs
+        .map((doc) => Recipe.fromMap(doc.data()))
+        .toList();
+    // Sort in memory instead of Firestore
+    recipes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return recipes;
   }
 
   // Load single recipe

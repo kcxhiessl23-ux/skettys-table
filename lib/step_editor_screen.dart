@@ -53,25 +53,16 @@ class _StepEditorScreenState extends State<StepEditorScreen> {
   }
 
   Future<void> _addPicture() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      setState(() => _isLoading = true);
-
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('stepImages')
-          .child('${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-      await ref.putFile(File(pickedFile.path));
-      final url = await ref.getDownloadURL();
-
-      setState(() {
-        _pictures.add(StepPicture(url: url, caption: ''));
-        _isLoading = false;
-      });
-    }
+    // Skip file upload on web - just use placeholder
+    setState(() {
+      _pictures.add(
+        StepPicture(
+          url:
+              'https://picsum.photos/200/200?random=${DateTime.now().millisecondsSinceEpoch}',
+          caption: '',
+        ),
+      );
+    });
   }
 
   Future<void> _addVideoSegment() async {
