@@ -27,8 +27,8 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
   String _difficulty = 'Easy';
   String? _coverImageUrl;
-  List<String> _tags = [];
-  List<RecipeStep> _steps = [];
+  final List<String> _tags = [];
+  final List<RecipeStep> _steps = [];
 
   bool _isLoading = false;
 
@@ -189,7 +189,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
             // Difficulty
             DropdownButtonFormField<String>(
-              value: _difficulty,
+              initialValue: _difficulty,
               decoration: const InputDecoration(
                 labelText: 'Difficulty',
                 border: OutlineInputBorder(),
@@ -300,7 +300,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   onTap: () => _editStep(index),
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
