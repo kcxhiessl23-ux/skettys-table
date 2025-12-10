@@ -14,13 +14,21 @@ class CookModeScreen extends StatefulWidget {
 
 class _CookModeScreenState extends State<CookModeScreen> {
   int _currentStepIndex = 0;
+  late PageController _pageController;
   YoutubePlayerController? _videoController;
   final List<ActiveTimer> _activeTimers = [];
 
   RecipeStep get _currentStep => widget.recipe.steps[_currentStepIndex];
 
   @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: 0);
+  }
+
+  @override
   void dispose() {
+    _pageController.dispose();
     _videoController?.close();
     for (var timer in _activeTimers) {
       timer.cancel();
@@ -30,21 +38,19 @@ class _CookModeScreenState extends State<CookModeScreen> {
 
   void _nextStep() {
     if (_currentStepIndex < widget.recipe.steps.length - 1) {
-      setState(() {
-        _currentStepIndex++;
-        _videoController?.close();
-        _videoController = null;
-      });
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
   void _previousStep() {
     if (_currentStepIndex > 0) {
-      setState(() {
-        _currentStepIndex--;
-        _videoController?.close();
-        _videoController = null;
-      });
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -280,7 +286,7 @@ class _CookModeScreenState extends State<CookModeScreen> {
             : null,
       ),
       body: PageView.builder(
-        controller: PageController(initialPage: _currentStepIndex),
+        controller: _pageController,
         onPageChanged: (index) {
           setState(() {
             _currentStepIndex = index;

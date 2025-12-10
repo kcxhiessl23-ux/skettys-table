@@ -12,6 +12,7 @@ import 'ai_recipe_screen.dart';
 import 'nonna_chat_dialog.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'recipes_page.dart';
+import 'media_search_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -180,7 +181,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
-                // Main content
+                // Macy background image
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Opacity(
+                    opacity: 0.75,
+                    child: Image.asset(
+                      'assets/images/macy_logo_floor.png',
+                      width: MediaQuery.of(context).size.width * 0.75,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+
+                // Main content (your existing RefreshIndicator)
                 RefreshIndicator(
                   onRefresh: _loadData,
                   child: ListView(
@@ -237,30 +253,229 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (_recipeOfTheDay != null)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    "Macy's Pick of the Day",
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
+                              // Quick Actions (Now on the LEFT)
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Title and Refresh button (Aligned to the right of this column)
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        const Text(
+                                          "Macy's Pick of the Day",
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.refresh,
+                                            color: Color(0xFF8B4513),
+                                          ),
+                                          onPressed: _refreshRecipeOfTheDay,
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.refresh,
-                                      color: Color(0xFF8B4513),
+                                    const SizedBox(height: 8),
+
+                                    // Three simple, clickable containers (cards) with equal height
+                                    Row(
+                                      children: [
+                                        // Photo Button/Card
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () async {
+                                              final result = await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      const UploadMediaScreen(
+                                                        mediaType: 'photo',
+                                                      ),
+                                                ),
+                                              );
+                                              if (result == true) _loadData();
+                                            },
+                                            child: Container(
+                                              height: 60, // Fixed height
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.shade300,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: const Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    Icons.add_photo_alternate,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'Photo',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Video Button/Card
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () async {
+                                              final result = await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      const UploadMediaScreen(
+                                                        mediaType: 'video',
+                                                      ),
+                                                ),
+                                              );
+                                              if (result == true) _loadData();
+                                            },
+                                            child: Container(
+                                              height: 60, // Fixed height
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.shade300,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: const Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    Icons.videocam,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'Video',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Search Button/Card
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () async {
+                                              final result =
+                                                  await showDialog<MediaItem>(
+                                                    context: context,
+                                                    builder: (_) =>
+                                                        const MediaSearchOverlay(),
+                                                  );
+
+                                              if (result != null) {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (_) => Dialog(
+                                                    child: Column(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        if (result.type ==
+                                                            'video')
+                                                          const Icon(
+                                                            Icons.videocam,
+                                                            size: 100,
+                                                          )
+                                                        else
+                                                          Image.network(
+                                                            result.url,
+                                                            fit: BoxFit.contain,
+                                                          ),
+                                                        const SizedBox(
+                                                          height: 16,
+                                                        ),
+                                                        Text(
+                                                          result.name,
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 18,
+                                                              ),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                context,
+                                                              ),
+                                                          child: const Text(
+                                                            'Close',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                            child: Container(
+                                              height: 60, // Fixed height
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.shade400,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: const Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    Icons.search,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'Search',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    onPressed: _refreshRecipeOfTheDay,
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(
+                                width: 8,
+                              ), // Spacing between actions and recipe
+                              // Recipe of the Day Card (Now on the RIGHT)
                               GestureDetector(
                                 onTap: () {
                                   Navigator.push(
@@ -274,6 +489,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 },
                                 child: Container(
                                   height: 200,
+                                  width: 150,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(16),
                                     image: DecorationImage(
@@ -326,100 +542,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-
-                      const SizedBox(height: 24),
-
-                      // Quick Actions
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const UploadMediaScreen(
-                                        mediaType: 'photo',
-                                      ),
-                                    ),
-                                  );
-                                  if (result == true) _loadData();
-                                },
-                                icon: const Icon(Icons.add_photo_alternate),
-                                label: const Text('Photo'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue.shade300,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const UploadMediaScreen(
-                                        mediaType: 'video',
-                                      ),
-                                    ),
-                                  );
-                                  if (result == true) _loadData();
-                                },
-                                icon: const Icon(Icons.videocam),
-                                label: const Text('Video'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue.shade300,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  // TODO: Open search overlay
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Search overlay coming next',
-                                      ),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.search),
-                                label: const Text('Search'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue.shade400,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
                       const SizedBox(height: 24),
 
                       // Recently Uploaded
@@ -484,7 +606,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
 
-                      const SizedBox(height: 100), // Space for bottom nav
+                      const SizedBox(height: 24),
+
+                      const SizedBox(height: 10), // Space for bottom nav
                     ],
                   ),
                 ),
