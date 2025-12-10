@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'recipe_model.dart';
 
 class VideoSegmentPicker extends StatefulWidget {
@@ -35,18 +35,16 @@ class _VideoSegmentPickerState extends State<VideoSegmentPicker> {
   @override
   void dispose() {
     _urlController.dispose();
-    _playerController?.close();
+    _playerController?.dispose();
     super.dispose();
   }
 
   void _initializePlayer(String url) {
-    final videoId = YoutubePlayerController.convertUrlToId(url);
-    if (videoId == null) {
+    final videoId = YoutubePlayer.convertUrlToId(url) ?? '';
+    if (videoId.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Invalid YouTube URL')));
-      _playerController?.close();
-      setState(() => _isPlayerReady = false);
       return;
     }
 
@@ -54,13 +52,11 @@ class _VideoSegmentPickerState extends State<VideoSegmentPicker> {
     const initialStartSeconds = 0.0;
 
     // 1. Create the controller
-    final controller = YoutubePlayerController.fromVideoId(
-      videoId: videoId,
-      autoPlay: false,
-      startSeconds: initialStartSeconds, // Set to 0.0
-      params: const YoutubePlayerParams(
-        showControls: true,
-        showFullscreenButton: true,
+    final controller = YoutubePlayerController(
+      initialVideoId: videoId,
+      flags: const YoutubePlayerFlags(
+        autoPlay: false,
+        controlsVisibleAtStart: true,
       ),
     );
 
@@ -73,7 +69,7 @@ class _VideoSegmentPickerState extends State<VideoSegmentPicker> {
     // 3. Keep the stability hack: Pause after 500ms to clear the initial buffer stall.
     Future.delayed(const Duration(milliseconds: 500), () {
       if (_playerController != null) {
-        _playerController!.pauseVideo();
+        _playerController!.pause();
       }
     });
 
@@ -86,13 +82,13 @@ class _VideoSegmentPickerState extends State<VideoSegmentPicker> {
 
   Future<void> _markStart() async {
     if (_playerController == null) return;
-    final currentTime = await _playerController!.currentTime;
+    final currentTime = _playerController!.value.position.inSeconds.toDouble();
     setState(() => _startTime = currentTime.toInt());
   }
 
   Future<void> _markEnd() async {
     if (_playerController == null) return;
-    final currentTime = await _playerController!.currentTime;
+    final currentTime = _playerController!.value.position.inSeconds.toDouble();
     setState(() => _endTime = currentTime.toInt());
   }
 
@@ -184,7 +180,7 @@ class _VideoSegmentPickerState extends State<VideoSegmentPicker> {
                     aspectRatio: 16 / 9,
                     child: YoutubePlayer(
                       controller: _playerController!,
-                      aspectRatio: 16 / 9,
+                      showVideoProgressIndicator: true,
                     ),
                   ),
                   const SizedBox(height: 16),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'dart:async';
 import 'recipe_model.dart';
 
@@ -29,7 +29,7 @@ class _CookModeScreenState extends State<CookModeScreen> {
   @override
   void dispose() {
     _pageController.dispose();
-    _videoController?.close();
+    _videoController?.dispose();
     for (var timer in _activeTimers) {
       timer.cancel();
     }
@@ -66,10 +66,11 @@ class _CookModeScreenState extends State<CookModeScreen> {
       await Future.delayed(const Duration(milliseconds: 250));
 
       // Use the explicit method call to get position
-      final currentPosition = (await _videoController!.currentTime) ?? 0.0;
+      final currentPosition = _videoController!.value.position.inSeconds
+          .toDouble();
 
       if (currentPosition >= endTime) {
-        _videoController!.pauseVideo();
+        _videoController!.pause();
 
         // 🛑 REMOVED: Navigator.of(context).pop();
 
@@ -90,37 +91,32 @@ class _CookModeScreenState extends State<CookModeScreen> {
         : 0.0;
 
     // 1. Stabilize by seeking back 1 second
-    _videoController!.seekTo(seconds: resetTime, allowSeekAhead: true);
+    _videoController!.seekTo(Duration(seconds: resetTime.toInt()));
 
     // 2. Immediately seek forward to the correct start time
-    _videoController!.seekTo(seconds: savedStartTime, allowSeekAhead: true);
+    _videoController!.seekTo(Duration(seconds: savedStartTime.toInt()));
 
     // 3. 🛑 CRITICAL CHANGE: Start the video playing!
-    _videoController!.playVideo();
+    _videoController!.play();
   }
 
   void _playVideoSegment() {
     final segment = _currentStep.videoSegment;
     if (segment == null) return;
 
-    final videoId = YoutubePlayerController.convertUrlToId(segment.url);
-    if (videoId == null) return;
+    final videoId = YoutubePlayer.convertUrlToId(segment.url) ?? '';
+    if (videoId.isEmpty) return;
 
-    _videoController?.close();
+    _videoController?.dispose();
     _videoController = null;
 
     final savedStartTime = segment.startTimeSeconds.toDouble();
     final initialLoadTime = savedStartTime + 1.0;
 
     // 1. Create controller: Load 1 second ahead, set autoPlay to false
-    _videoController = YoutubePlayerController.fromVideoId(
-      videoId: videoId,
-      autoPlay: false,
-      startSeconds: initialLoadTime,
-      params: const YoutubePlayerParams(
-        showControls: true,
-        showFullscreenButton: true,
-      ),
+    _videoController = YoutubePlayerController(
+      initialVideoId: videoId,
+      flags: YoutubePlayerFlags(autoPlay: false, controlsVisibleAtStart: true),
     );
 
     setState(() {});
@@ -133,17 +129,15 @@ class _CookModeScreenState extends State<CookModeScreen> {
             : 0.0;
 
         // Stabilization Seek Back -> Seek Forward
-        _videoController!.seekTo(seconds: stabilizeTime);
-        _videoController!.seekTo(seconds: savedStartTime);
-        _videoController!.pauseVideo();
+        _videoController!.seekTo(Duration(seconds: stabilizeTime.toInt()));
+        _videoController!.seekTo(Duration(seconds: savedStartTime.toInt()));
       }
     });
 
     // 3. Start polling when the user presses play.
     // We attach an action to the controller's main event stream to start polling when the state changes to playing.
-    _videoController!.listen((event) {
-      if (event.playerState == PlayerState.playing) {
-        // 🛑 START THE POLLING LOOP WHEN THE USER PRESSES PLAY
+    _videoController!.addListener(() {
+      if (_videoController!.value.isPlaying) {
         _startEndCheckPolling();
       }
     });
@@ -159,7 +153,7 @@ class _CookModeScreenState extends State<CookModeScreen> {
               aspectRatio: 16 / 9,
               child: YoutubePlayer(
                 controller: _videoController!,
-                aspectRatio: 16 / 9,
+                showVideoProgressIndicator: true,
               ),
             ),
             Row(
@@ -172,8 +166,7 @@ class _CookModeScreenState extends State<CookModeScreen> {
                 ),
                 TextButton(
                   onPressed: () {
-                    // No need to remove a listener, only close the controller.
-                    _videoController?.close();
+                    _videoController?.dispose();
                     _videoController = null;
                     Navigator.pop(context);
                   },
@@ -290,7 +283,7 @@ class _CookModeScreenState extends State<CookModeScreen> {
         onPageChanged: (index) {
           setState(() {
             _currentStepIndex = index;
-            _videoController?.close();
+            _videoController?.dispose();
             _videoController = null;
           });
         },

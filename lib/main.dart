@@ -13,6 +13,7 @@ import 'nonna_chat_dialog.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'recipes_page.dart';
 import 'media_search_overlay.dart';
+import 'splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -287,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     // Three simple, clickable containers (cards) with equal height
                                     Row(
                                       children: [
-                                        // Photo Button/Card
+                                        // PHOTO BUTTON — Dog Icon #1
                                         Expanded(
                                           child: GestureDetector(
                                             onTap: () async {
@@ -302,39 +303,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                               );
                                               if (result == true) _loadData();
                                             },
-                                            child: Container(
-                                              height: 60, // Fixed height
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.shade300,
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: const Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.add_photo_alternate,
-                                                    color: Colors.white,
-                                                    size: 20,
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    'Photo',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ],
+                                            child: SizedBox(
+                                              height: 120,
+                                              child: Image.asset(
+                                                'assets/images/icons/iconPicture.png', // <-- your first dog icon
+                                                fit: BoxFit.contain,
                                               ),
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        // Video Button/Card
+                                        const SizedBox(width: 10),
+
+                                        // VIDEO BUTTON — Dog Icon #2
                                         Expanded(
                                           child: GestureDetector(
                                             onTap: () async {
@@ -349,39 +329,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                               );
                                               if (result == true) _loadData();
                                             },
-                                            child: Container(
-                                              height: 60, // Fixed height
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.shade300,
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: const Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.videocam,
-                                                    color: Colors.white,
-                                                    size: 20,
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    'Video',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ],
+                                            child: SizedBox(
+                                              height: 120,
+                                              child: Image.asset(
+                                                'assets/images/icons/iconVideo.png', // <-- your second dog icon
+                                                fit: BoxFit.contain,
                                               ),
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        // Search Button/Card
+                                        const SizedBox(width: 10),
+
+                                        // SEARCH BUTTON — Dog Icon #3
                                         Expanded(
                                           child: GestureDetector(
                                             onTap: () async {
@@ -436,33 +395,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 );
                                               }
                                             },
-                                            child: Container(
-                                              height: 60, // Fixed height
-                                              decoration: BoxDecoration(
-                                                color: Colors.blue.shade400,
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: const Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(
-                                                    Icons.search,
-                                                    color: Colors.white,
-                                                    size: 20,
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    'Search',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ],
+                                            child: SizedBox(
+                                              height: 120,
+                                              child: Image.asset(
+                                                'assets/images/icons/iconSearch.png', // <-- your third dog icon
+                                                fit: BoxFit.contain,
                                               ),
                                             ),
                                           ),
