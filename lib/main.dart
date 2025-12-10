@@ -5,9 +5,17 @@ import 'create_recipe_screen.dart';
 import 'cook_mode_screen.dart';
 import 'firestore_service.dart';
 import 'recipe_model.dart';
+import 'media_model.dart';
+import 'upload_media_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'ai_recipe_screen.dart';
+import 'nonna_chat_dialog.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'recipes_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: "lib/.env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const SkettysTableApp());
 }
@@ -115,148 +123,486 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _firestoreService = FirestoreService();
   List<Recipe> _recipes = [];
+  List<MediaItem> _media = [];
   bool _isLoading = true;
+  Recipe? _recipeOfTheDay;
 
   @override
   void initState() {
     super.initState();
-    _loadRecipes(); // ⬅️ This is the call that starts the loading process
+    _loadData();
   }
 
-  Future<void> _loadRecipes() async {
-    print('Loading recipes...');
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    try {
-      // You may need to update this line with the date fix we discussed earlier
-      _recipes = await _firestoreService.loadRecipes();
-    } catch (e) {
-      print('Error loading recipes: $e');
-      // Set to empty list on failure to avoid showing previous state
-      _recipes = [];
-    }
-
-    print('Loaded ${_recipes.length} recipes');
+    _recipes = await _firestoreService.loadRecipes();
+    _media = await _firestoreService.loadAllMedia();
+    _pickRecipeOfTheDay();
     setState(() => _isLoading = false);
+  }
+
+  void _pickRecipeOfTheDay() {
+    if (_recipes.isNotEmpty) {
+      final shuffled = List<Recipe>.from(_recipes)..shuffle();
+      _recipeOfTheDay = shuffled.first;
+    }
+  }
+
+  void _refreshRecipeOfTheDay() {
+    setState(() {
+      _pickRecipeOfTheDay();
+    });
+  }
+
+  void _showNonnaChat(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return const NonnaChatDialog();
+      },
+    );
+  }
+
+  List<dynamic> get _recentlyUploaded {
+    final List<dynamic> combined = [..._recipes, ..._media];
+    combined.sort((a, b) {
+      final aDate = a is Recipe ? a.createdAt : (a as MediaItem).uploadedAt;
+      final bDate = b is Recipe ? b.createdAt : (b as MediaItem).uploadedAt;
+      return bDate.compareTo(aDate);
+    });
+    return combined.take(12).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        // This is where your screen title goes
-        title: const Text("Home Screen: Sketty's Table"),
-        backgroundColor: const Color(0xFF8B4513),
-      ),
-
-      // The main content of the screen
-      body: Column(
-        children: [
-          // Diagnostic Text at the top
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
               children: [
-                Text('Loading status: $_isLoading'),
-                Text('Recipe count: ${_recipes.length}'),
+                // Main content
+                RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B4513),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                image: const DecorationImage(
+                                  image: NetworkImage(
+                                    'https://picsum.photos/100',
+                                  ),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                "Sketty's Table",
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontFamily: 'Georgia',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Recipe of the Day
+                      if (_recipeOfTheDay != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    "Macy's Pick of the Day",
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.refresh,
+                                      color: Color(0xFF8B4513),
+                                    ),
+                                    onPressed: _refreshRecipeOfTheDay,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CookModeScreen(
+                                        recipe: _recipeOfTheDay!,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  height: 200,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    image: DecorationImage(
+                                      image: NetworkImage(
+                                        _recipeOfTheDay!.coverImageUrl,
+                                      ),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: LinearGradient(
+                                        begin: Alignment.center,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withOpacity(0.9),
+                                        ],
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.all(16),
+                                    alignment: Alignment.bottomLeft,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _recipeOfTheDay!.name,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _recipeOfTheDay!.category,
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      const SizedBox(height: 24),
+
+                      // Quick Actions
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const UploadMediaScreen(
+                                        mediaType: 'photo',
+                                      ),
+                                    ),
+                                  );
+                                  if (result == true) _loadData();
+                                },
+                                icon: const Icon(Icons.add_photo_alternate),
+                                label: const Text('Photo'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade300,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const UploadMediaScreen(
+                                        mediaType: 'video',
+                                      ),
+                                    ),
+                                  );
+                                  if (result == true) _loadData();
+                                },
+                                icon: const Icon(Icons.videocam),
+                                label: const Text('Video'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade300,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  // TODO: Open search overlay
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Search overlay coming next',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.search),
+                                label: const Text('Search'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade400,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Recently Uploaded
+                      if (_recentlyUploaded.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                'Recent Uploads',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              height: 180,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                itemCount: _recentlyUploaded.length,
+                                itemBuilder: (context, index) {
+                                  final item = _recentlyUploaded[index];
+
+                                  if (item is Recipe) {
+                                    return GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                CookModeScreen(recipe: item),
+                                          ),
+                                        );
+                                      },
+                                      child: _buildRecentCard(
+                                        item.coverImageUrl,
+                                        item.name,
+                                        item.category,
+                                        Icons.restaurant_menu,
+                                      ),
+                                    );
+                                  } else {
+                                    final media = item as MediaItem;
+                                    return _buildRecentCard(
+                                      media.url,
+                                      media.name,
+                                      media.type,
+                                      media.type == 'video'
+                                          ? Icons.play_circle
+                                          : Icons.photo,
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+
+                      const SizedBox(height: 100), // Space for bottom nav
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
 
-          // The main content area
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                // If not loading, check if recipes list is empty
-                : _recipes.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'No recipes yet',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const CreateRecipeScreen(),
-                              ),
-                            );
-                            _loadRecipes();
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF8B4513),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 50,
-                              vertical: 20,
-                            ),
-                          ),
-                          child: const Text(
-                            'Create First Recipe',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                // If recipes are loaded and not empty, show the list
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _recipes.length,
-                    itemBuilder: (context, index) {
-                      final recipe = _recipes[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: ListTile(
-                          leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              recipe.coverImageUrl,
-                              width: 60,
-                              height: 60,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          title: Text(
-                            recipe.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            '${recipe.steps.length} steps • ${recipe.prepTimeMinutes + recipe.cookTimeMinutes} min',
-                          ),
-                          trailing: const Icon(Icons.arrow_forward_ios),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => CookModeScreen(recipe: recipe),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ], // Closes the Column children list
-      ), // Closes the body widget
-
+      // Floating Action Button (Nonna Chat)
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CreateRecipeScreen()),
-          );
-          _loadRecipes();
-        },
-        backgroundColor: const Color(0xFF8B4513),
-        child: const Icon(Icons.add),
+        onPressed: () =>
+            _showNonnaChat(context), // <-- Calls the function above
+        backgroundColor: Colors.red[300],
+        // Use a child icon or image. Assuming 'assets/nonna_dog.jpg' is your image.
+        child: const CircleAvatar(
+          radius: 28,
+          backgroundImage: AssetImage('assets/images/nonna_dog.jpg'),
+        ),
       ),
-    ); // Closes the Scaffold
+      // Position it in the bottom-right corner
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: const Color(0xFF8B4513),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_circle),
+            label: 'Create',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.restaurant_menu),
+            label: 'Recipes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart),
+            label: 'Shopping',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Cook'),
+        ],
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateRecipeScreen()),
+            ).then((_) => _loadData());
+          } else if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const RecipesPage()),
+            );
+          } else if (index == 3) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Shopping list coming soon')),
+            );
+          } else if (index == 4) {
+            if (_recipes.isNotEmpty) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CookModeScreen(recipe: _recipes.first),
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildRecentCard(
+    String imageUrl,
+    String name,
+    String subtitle,
+    IconData icon,
+  ) {
+    return Container(
+      width: 140,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        image: DecorationImage(
+          image: NetworkImage(imageUrl),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+          ),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const Spacer(),
+            Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              subtitle,
+              style: const TextStyle(color: Colors.white70, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

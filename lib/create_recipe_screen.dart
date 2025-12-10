@@ -17,6 +17,34 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firestoreService = FirestoreService();
 
+  final List<String> _categoryOptions = [
+    'Pasta',
+    'Dinner',
+    'Dessert',
+    'Breakfast',
+    'Soup',
+    'Salad',
+    'Appetizer',
+    'Main Course',
+    'Side Dish',
+    'Snack',
+  ];
+
+  final List<String> _tagOptions = [
+    'Italian',
+    'Quick',
+    'Heavy',
+    'Light',
+    'Party',
+    'Red Sauce',
+    'White Sauce',
+    'Vegetarian',
+    'Spicy',
+    'Mild',
+  ];
+
+  List<String> _selectedTags = [];
+
   // Controllers for basic info
   final _nameController = TextEditingController();
   final _categoryController = TextEditingController();
@@ -27,7 +55,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
   String _difficulty = 'Easy';
   String? _coverImageUrl;
-  final List<String> _tags = [];
   final List<RecipeStep> _steps = [];
 
   bool _isLoading = false;
@@ -80,7 +107,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       name: _nameController.text,
       coverImageUrl: _coverImageUrl!,
       category: _categoryController.text,
-      tags: _tags,
+      tags: _selectedTags,
       prepTimeMinutes: int.tryParse(_prepTimeController.text) ?? 0,
       cookTimeMinutes: int.tryParse(_cookTimeController.text) ?? 0,
       servings: int.tryParse(_servingsController.text) ?? 1,
@@ -175,32 +202,254 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Category
-            TextFormField(
-              controller: _categoryController,
-              decoration: const InputDecoration(
-                labelText: 'Category (e.g., Italian, Pasta)',
-                border: OutlineInputBorder(),
-              ),
+            // Category + Add button
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: DropdownButtonFormField<String>(
+                    value: _categoryController.text.isEmpty
+                        ? null
+                        : _categoryController.text,
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _categoryOptions.map((category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        _categoryController.text = value;
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(
+                    Icons.add_circle,
+                    color: Color(0xFF8B4513),
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        final controller = TextEditingController();
+                        return AlertDialog(
+                          title: const Text('Add Category'),
+                          content: TextField(
+                            controller: controller,
+                            decoration: const InputDecoration(
+                              hintText: 'New category',
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                if (controller.text.isNotEmpty) {
+                                  setState(() {
+                                    _categoryOptions.add(controller.text);
+                                    _categoryController.text = controller.text;
+                                  });
+                                  Navigator.pop(context);
+                                }
+                              },
+                              child: const Text('Add'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.remove_circle,
+                    color: Colors.red,
+                    size: 28,
+                  ),
+                  onPressed: () {
+                    if (_categoryController.text.isNotEmpty &&
+                        ![
+                          'Pasta',
+                          'Dinner',
+                          'Dessert',
+                          'Breakfast',
+                          'Soup',
+                          'Salad',
+                          'Appetizer',
+                          'Main Course',
+                          'Side Dish',
+                          'Snack',
+                        ].contains(_categoryController.text)) {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete Category'),
+                          content: Text(
+                            'Remove "${_categoryController.text}"?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _categoryOptions.remove(
+                                    _categoryController.text,
+                                  );
+                                  _categoryController.clear();
+                                });
+                                Navigator.pop(context);
+                              },
+                              child: const Text(
+                                'Delete',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Cannot delete default categories'),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: _difficulty,
+                    decoration: const InputDecoration(
+                      labelText: 'Difficulty',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ['Easy', 'Medium', 'Hard']
+                        .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _difficulty = v!),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
 
-            // Difficulty
-            DropdownButtonFormField<String>(
-              initialValue: _difficulty,
-              decoration: const InputDecoration(
-                labelText: 'Difficulty',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                'Easy',
-                'Medium',
-                'Hard',
-              ].map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-              onChanged: (v) => setState(() => _difficulty = v!),
+            // Tags section
+            Row(
+              children: [
+                const Text(
+                  'Tags:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.add_circle, color: Color(0xFF8B4513)),
+                  onPressed: () {
+                    // Add custom tag
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        final controller = TextEditingController();
+                        return AlertDialog(
+                          title: const Text('Add Tag'),
+                          content: TextField(
+                            controller: controller,
+                            decoration: const InputDecoration(
+                              hintText: 'New tag',
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                if (controller.text.isNotEmpty) {
+                                  setState(() {
+                                    _tagOptions.add(controller.text);
+                                  });
+                                  Navigator.pop(context);
+                                }
+                              },
+                              child: const Text('Add'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _tagOptions.map((tag) {
+                final isSelected = _selectedTags.contains(tag);
+                return GestureDetector(
+                  onLongPress: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete Tag'),
+                        content: Text('Remove "$tag" from available tags?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _tagOptions.remove(tag);
+                                _selectedTags.remove(tag);
+                              });
+                              Navigator.pop(context);
+                            },
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  child: FilterChip(
+                    label: Text(tag),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedTags.add(tag);
+                        } else {
+                          _selectedTags.remove(tag);
+                        }
+                      });
+                    },
+                    selectedColor: const Color(0xFF8B4513).withOpacity(0.3),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
             // Times and Servings Row
             Row(
               children: [
