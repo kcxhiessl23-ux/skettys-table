@@ -1,9 +1,12 @@
 class Recipe {
   final String id;
   final String name;
+  final String description; // ADD THIS
   final String coverImageUrl;
   final String category;
   final List<String> tags;
+  final List<String> equipment; // ADD THIS
+  final List<String> ingredients; // ADD THIS
   final int prepTimeMinutes;
   final int cookTimeMinutes;
   final int servings;
@@ -15,9 +18,12 @@ class Recipe {
   Recipe({
     required this.id,
     required this.name,
+    required this.description, // ADD THIS
     required this.coverImageUrl,
     required this.category,
     required this.tags,
+    required this.equipment, // ADD THIS
+    required this.ingredients, // ADD THIS
     required this.prepTimeMinutes,
     required this.cookTimeMinutes,
     required this.servings,
@@ -31,9 +37,12 @@ class Recipe {
     return {
       'id': id,
       'name': name,
+      'description': description, // ADD THIS
       'coverImageUrl': coverImageUrl,
       'category': category,
       'tags': tags,
+      'equipment': equipment, // ADD THIS
+      'ingredients': ingredients, // ADD THIS
       'prepTimeMinutes': prepTimeMinutes,
       'cookTimeMinutes': cookTimeMinutes,
       'servings': servings,
@@ -48,9 +57,12 @@ class Recipe {
     return Recipe(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
+      description: map['description'] ?? '', // ADD THIS
       coverImageUrl: map['coverImageUrl'] ?? '',
       category: map['category'] ?? '',
       tags: List<String>.from(map['tags'] ?? []),
+      equipment: List<String>.from(map['equipment'] ?? []), // ADD THIS
+      ingredients: List<String>.from(map['ingredients'] ?? []), // ADD THIS
       prepTimeMinutes: map['prepTimeMinutes'] ?? 0,
       cookTimeMinutes: map['cookTimeMinutes'] ?? 0,
       servings: map['servings'] ?? 0,
@@ -76,6 +88,7 @@ class RecipeStep {
   final List<StepPicture> pictures;
   final VideoSegment? videoSegment;
   final List<StepTimer> timers;
+  final List<String> stepIngredients; // ADD THIS
 
   RecipeStep({
     required this.stepNumber,
@@ -85,6 +98,7 @@ class RecipeStep {
     required this.pictures,
     this.videoSegment,
     required this.timers,
+    required this.stepIngredients, // ADD THIS
   });
 
   Map<String, dynamic> toMap() {
@@ -96,6 +110,7 @@ class RecipeStep {
       'pictures': pictures.map((p) => p.toMap()).toList(),
       'videoSegment': videoSegment?.toMap(),
       'timers': timers.map((t) => t.toMap()).toList(),
+      'stepIngredients': stepIngredients, // ADD THIS
     };
   }
 
@@ -118,6 +133,9 @@ class RecipeStep {
               ?.map((t) => StepTimer.fromMap(t as Map<String, dynamic>))
               .toList() ??
           [],
+      stepIngredients: List<String>.from(
+        map['stepIngredients'] ?? [],
+      ), // ADD THIS
     );
   }
 }

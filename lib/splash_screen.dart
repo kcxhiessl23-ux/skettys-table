@@ -42,15 +42,26 @@ class _SplashScreenState extends State<SplashScreen> {
         onTap: _goNext, // USER TAP = Continue into app
         child: Center(
           child: _controller.value.isInitialized
-              ? SizedBox.expand(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: _controller.value.size.width,
-                      height: _controller.value.size.height,
-                      child: VideoPlayer(_controller),
-                    ),
-                  ),
+              ? OrientationBuilder(
+                  builder: (context, orientation) {
+                    if (orientation == Orientation.portrait) {
+                      // portrait = cinematic fill (crop ok)
+                      return FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: _controller.value.size.width,
+                          height: _controller.value.size.height,
+                          child: VideoPlayer(_controller),
+                        ),
+                      );
+                    } else {
+                      // landscape = perfect fit (no crop)
+                      return AspectRatio(
+                        aspectRatio: _controller.value.aspectRatio,
+                        child: VideoPlayer(_controller),
+                      );
+                    }
+                  },
                 )
               : const CircularProgressIndicator(),
         ),

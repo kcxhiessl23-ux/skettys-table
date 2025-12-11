@@ -16,7 +16,7 @@ class _MediaSearchOverlayState extends State<MediaSearchOverlay> {
   List<MediaItem> _allMedia = [];
   List<MediaItem> _filteredMedia = [];
   String? _selectedCategory;
-  List<String> _selectedTags = [];
+  final List<String> _selectedTags = [];
   String _mediaType = 'all'; // 'all', 'video', 'photo'
   bool _isLoading = true;
 
@@ -167,7 +167,7 @@ class _MediaSearchOverlayState extends State<MediaSearchOverlay> {
 
             // Category dropdown
             DropdownButtonFormField<String>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               decoration: InputDecoration(
                 labelText: 'Category',
                 border: OutlineInputBorder(

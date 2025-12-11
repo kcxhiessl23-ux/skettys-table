@@ -7,12 +7,11 @@ import 'firestore_service.dart';
 import 'recipe_model.dart';
 import 'media_model.dart';
 import 'upload_media_screen.dart';
-import 'package:image_picker/image_picker.dart';
-import 'ai_recipe_screen.dart';
 import 'nonna_chat_dialog.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'recipes_page.dart';
 import 'media_search_overlay.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'splash_screen.dart';
 
 void main() async {
@@ -31,10 +30,10 @@ class SkettysTableApp extends StatelessWidget {
       title: "Sketty's Table",
       theme: ThemeData(
         primarySwatch: Colors.brown,
-        scaffoldBackgroundColor: const Color(0xFFFFF8E7),
+        scaffoldBackgroundColor: const Color(0xFFD4B896), // brick tan color
         fontFamily: 'Georgia',
       ),
-      home: const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }
@@ -129,6 +128,144 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   Recipe? _recipeOfTheDay;
 
+  Widget _actionCard({
+    required String asset,
+    required String label,
+    required Color color,
+    required void Function() onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 140, // ← bigger
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 6,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              /// DOG ICON BIG AS FUCK NOW
+              SvgPicture.asset(asset, width: 90, height: 90),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Standard card (solid color or gradient)
+  Widget _homeCard({
+    required String label,
+    required Widget child,
+    required Color color,
+    void Function()? onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 180,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 6,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              child,
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Card with a left/right gradient (for Search)
+  Widget _homeCardGradient({
+    required String label,
+    required Color leftColor,
+    required Color rightColor,
+    void Function()? onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 180,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [leftColor, rightColor],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 6,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Add simple icon here if desired
+              SvgPicture.asset(
+                '/images/icons/iconSearch.svg',
+                width: 90,
+                height: 90,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -204,43 +341,37 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: EdgeInsets.zero,
                     children: [
                       // Header
+                      // ★★★ New Modern Layout (Macy Cards + Pick of Day) ★★★
+                      // AppBar-like header (small picture + large title)
                       Container(
                         padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8B4513),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF8B4513),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black26,
                               blurRadius: 4,
-                              offset: const Offset(0, 2),
+                              offset: Offset(0, 2),
                             ),
                           ],
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                                image: const DecorationImage(
-                                  image: NetworkImage(
-                                    'https://picsum.photos/100',
-                                  ),
-                                  fit: BoxFit.cover,
-                                ),
+                            CircleAvatar(
+                              radius: 25,
+                              backgroundImage: AssetImage(
+                                'assets/images/icons/macy template.png',
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Text(
                                 "Sketty's Table",
-                                style: TextStyle(
-                                  fontSize: 28,
+                                style: const TextStyle(
+                                  fontSize: 32,
                                   fontWeight: FontWeight.bold,
+                                  fontStyle: FontStyle.italic,
                                   color: Colors.white,
-                                  fontFamily: 'Georgia',
                                 ),
                               ),
                             ),
@@ -250,300 +381,221 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Recipe of the Day
-                      if (_recipeOfTheDay != null)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Quick Actions (Now on the LEFT)
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    // Title and Refresh button (Aligned to the right of this column)
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        const Text(
-                                          "Macy's Pick of the Day",
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.refresh,
-                                            color: Color(0xFF8B4513),
-                                          ),
-                                          onPressed: _refreshRecipeOfTheDay,
-                                        ),
-                                      ],
+                      // Main card row (five equal cards)
+                      Row(
+                        children: [
+                          // Mystery / AI suggestion card
+                          _homeCard(
+                            label: "Surprise",
+                            color: const Color(0xFFF5CBA7),
+                            onTap: () {
+                              _showNonnaChat(
+                                context,
+                              ); // Opens Macinna with random suggestion prompt
+                            },
+                            child: Image.asset(
+                              'assets/images/icons/macy template.png',
+                              height: 100,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+
+                          // Photo upload card
+                          _homeCard(
+                            label: "Photo",
+                            color: const Color(0xFFFFD59A),
+                            onTap: () => _openUploader('photo'),
+                            child: SvgPicture.asset(
+                              'assets/images/icons/iconPhoto.svg',
+                              height: 100,
+                            ),
+                          ),
+
+                          // Video upload card
+                          _homeCard(
+                            label: "Video",
+                            color: const Color(0xFFABEBC6),
+                            onTap: () => _openUploader('video'),
+                            child: SvgPicture.asset(
+                              'assets/images/icons/iconVideo.svg',
+                              height: 100,
+                            ),
+                          ),
+
+                          // Search card with gradient indicating photo/video
+                          _homeCardGradient(
+                            label: "Search",
+                            leftColor: const Color(0xFFFFE0B2), // photo tone
+                            rightColor: const Color(0xFFD1F2EB), // video tone
+                            onTap: _openSearch,
+                          ),
+                          // Macy's Pick of the Day card
+                          if (_recipeOfTheDay != null)
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CookModeScreen(
+                                      recipe: _recipeOfTheDay!,
                                     ),
-                                    const SizedBox(height: 8),
-
-                                    // Three simple, clickable containers (cards) with equal height
-                                    Row(
-                                      children: [
-                                        // PHOTO BUTTON — Dog Icon #1
-                                        Expanded(
-                                          child: GestureDetector(
-                                            onTap: () async {
-                                              final result = await Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      const UploadMediaScreen(
-                                                        mediaType: 'photo',
-                                                      ),
-                                                ),
-                                              );
-                                              if (result == true) _loadData();
-                                            },
-                                            child: SizedBox(
-                                              height: 120,
-                                              child: Image.asset(
-                                                'assets/images/icons/iconPicture.png', // <-- your first dog icon
-                                                fit: BoxFit.contain,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-
-                                        // VIDEO BUTTON — Dog Icon #2
-                                        Expanded(
-                                          child: GestureDetector(
-                                            onTap: () async {
-                                              final result = await Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      const UploadMediaScreen(
-                                                        mediaType: 'video',
-                                                      ),
-                                                ),
-                                              );
-                                              if (result == true) _loadData();
-                                            },
-                                            child: SizedBox(
-                                              height: 120,
-                                              child: Image.asset(
-                                                'assets/images/icons/iconVideo.png', // <-- your second dog icon
-                                                fit: BoxFit.contain,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-
-                                        // SEARCH BUTTON — Dog Icon #3
-                                        Expanded(
-                                          child: GestureDetector(
-                                            onTap: () async {
-                                              final result =
-                                                  await showDialog<MediaItem>(
-                                                    context: context,
-                                                    builder: (_) =>
-                                                        const MediaSearchOverlay(),
-                                                  );
-
-                                              if (result != null) {
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (_) => Dialog(
-                                                    child: Column(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        if (result.type ==
-                                                            'video')
-                                                          const Icon(
-                                                            Icons.videocam,
-                                                            size: 100,
-                                                          )
-                                                        else
-                                                          Image.network(
-                                                            result.url,
-                                                            fit: BoxFit.contain,
-                                                          ),
-                                                        const SizedBox(
-                                                          height: 16,
-                                                        ),
-                                                        Text(
-                                                          result.name,
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 18,
-                                                              ),
-                                                        ),
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                context,
-                                                              ),
-                                                          child: const Text(
-                                                            'Close',
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                            child: SizedBox(
-                                              height: 120,
-                                              child: Image.asset(
-                                                'assets/images/icons/iconSearch.png', // <-- your third dog icon
-                                                fit: BoxFit.contain,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(
-                                width: 8,
-                              ), // Spacing between actions and recipe
-                              // Recipe of the Day Card (Now on the RIGHT)
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => CookModeScreen(
-                                        recipe: _recipeOfTheDay!,
-                                      ),
-                                    ),
-                                  );
-                                },
                                 child: Container(
-                                  height: 200,
-                                  width: 150,
+                                  height: 180,
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(18),
                                     image: DecorationImage(
                                       image: NetworkImage(
                                         _recipeOfTheDay!.coverImageUrl,
                                       ),
                                       fit: BoxFit.cover,
                                     ),
-                                  ),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      gradient: LinearGradient(
-                                        begin: Alignment.center,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withOpacity(0.9),
-                                        ],
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 4),
                                       ),
+                                    ],
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      // Macy icon in top-right corner
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: CircleAvatar(
+                                          radius: 20,
+                                          backgroundColor: Colors.white,
+                                          backgroundImage: AssetImage(
+                                            'assets/images/icons/macy template.png',
+                                          ),
+                                        ),
+                                      ),
+                                      // Recipe name at bottom
+                                      Align(
+                                        alignment: Alignment.bottomLeft,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black54,
+                                            borderRadius:
+                                                const BorderRadius.only(
+                                                  bottomLeft: Radius.circular(
+                                                    18,
+                                                  ),
+                                                  bottomRight: Radius.circular(
+                                                    18,
+                                                  ),
+                                                ),
+                                          ),
+                                          child: Text(
+                                            _recipeOfTheDay!.name,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      // Recently added section, overlaps background slightly
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: const Text(
+                          "Recent Uploads",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 200,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _recentlyUploaded.length,
+                          itemBuilder: (_, i) {
+                            final item = _recentlyUploaded[i];
+                            final isRecipe = item is Recipe;
+                            final img = isRecipe
+                                ? item.coverImageUrl
+                                : (item as MediaItem).url;
+
+                            return GestureDetector(
+                              onTap: () {
+                                if (isRecipe) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          CookModeScreen(recipe: item),
                                     ),
-                                    padding: const EdgeInsets.all(16),
-                                    alignment: Alignment.bottomLeft,
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _recipeOfTheDay!.name,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _recipeOfTheDay!.category,
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 16,
-                                          ),
-                                        ),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                width: 150,
+                                margin: const EdgeInsets.only(right: 14),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  image: DecorationImage(
+                                    image: NetworkImage(img),
+                                    fit: BoxFit.cover,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 8,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  alignment: Alignment.bottomLeft,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.transparent,
+                                        Colors.black.withOpacity(0.75),
                                       ],
                                     ),
                                   ),
+                                  child: Text(
+                                    isRecipe ? item.name : item.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      const SizedBox(height: 24),
-
-                      // Recently Uploaded
-                      if (_recentlyUploaded.isNotEmpty)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text(
-                                'Recent Uploads',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              height: 180,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                itemCount: _recentlyUploaded.length,
-                                itemBuilder: (context, index) {
-                                  final item = _recentlyUploaded[index];
-
-                                  if (item is Recipe) {
-                                    return GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                CookModeScreen(recipe: item),
-                                          ),
-                                        );
-                                      },
-                                      child: _buildRecentCard(
-                                        item.coverImageUrl,
-                                        item.name,
-                                        item.category,
-                                        Icons.restaurant_menu,
-                                      ),
-                                    );
-                                  } else {
-                                    final media = item as MediaItem;
-                                    return _buildRecentCard(
-                                      media.url,
-                                      media.name,
-                                      media.type,
-                                      media.type == 'video'
-                                          ? Icons.play_circle
-                                          : Icons.photo,
-                                    );
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-
-                      const SizedBox(height: 24),
+                      ),
 
                       const SizedBox(height: 10), // Space for bottom nav
                     ],
@@ -616,54 +668,26 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildRecentCard(
-    String imageUrl,
-    String name,
-    String subtitle,
-    IconData icon,
-  ) {
-    return Container(
-      width: 140,
-      margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(
-          image: NetworkImage(imageUrl),
-          fit: BoxFit.cover,
-        ),
+  // ==========================
+  // REQUIRED HELPERS FOR CARDS
+  // ==========================
+  void _openUploader(String mediaType) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UploadMediaScreen(mediaType: mediaType),
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-          ),
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const Spacer(),
-            Text(
-              name,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(color: Colors.white70, fontSize: 11),
-            ),
-          ],
-        ),
-      ),
+    ).then((_) => _loadData());
+  }
+
+  Future<void> _openSearch() async {
+    final result = await showDialog<MediaItem>(
+      context: context,
+      builder: (_) => const MediaSearchOverlay(),
     );
+
+    if (result != null) {
+      // later you can open viewer or details here if needed
+    }
   }
 }

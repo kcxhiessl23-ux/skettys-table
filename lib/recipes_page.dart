@@ -17,7 +17,7 @@ class _RecipesPageState extends State<RecipesPage> {
   List<Recipe> _allRecipes = [];
   List<Recipe> _filteredRecipes = [];
   String? _selectedCategory;
-  List<String> _selectedTags = [];
+  final List<String> _selectedTags = [];
   bool _isLoading = true;
 
   final List<String> _categories = [
@@ -119,7 +119,7 @@ class _RecipesPageState extends State<RecipesPage> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: DropdownButtonFormField<String>(
-                    value: _selectedCategory,
+                    initialValue: _selectedCategory,
                     decoration: InputDecoration(
                       labelText: 'Category',
                       border: OutlineInputBorder(
