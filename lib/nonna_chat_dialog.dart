@@ -71,7 +71,7 @@ class _NonnaChatDialogState extends State<NonnaChatDialog> {
 
     // 4. Add a starting message from Nonna
     _messages.add(
-      "Macinna: *streeeetch* …oh Laura, I just woke up from a good nap. Come, sit with me a minute—tell me what we’re cooking or dreaming about today.",
+      "Macinna: *streeeetch* …oh Laura, I just woke up from a good nap. Come, sit with me a minute—tell me what we’re cooking today.",
     );
   }
 

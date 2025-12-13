@@ -85,6 +85,7 @@ flutter:
     - assets/images/icons/iconSearch.svg
     - assets/images/icons/macy template.png
     - assets/images/backgrounds/bgCreateRecipe.png
+    - assets/images/backgrounds/bgHome.png
     - lib/.env
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg

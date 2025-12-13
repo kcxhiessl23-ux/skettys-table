@@ -8,7 +8,9 @@ import 'step_editor_screen.dart';
 import 'macinna_fab.dart';
 
 class CreateRecipeScreen extends StatefulWidget {
-  const CreateRecipeScreen({super.key});
+  final Recipe? existingRecipe;
+
+  const CreateRecipeScreen({super.key, this.existingRecipe});
 
   @override
   State<CreateRecipeScreen> createState() => _CreateRecipeScreenState();
@@ -48,7 +50,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
 
   // Controllers for basic info
   final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController(); // ADD THIS
+  final _descriptionController = TextEditingController();
   final _categoryController = TextEditingController();
   final _prepTimeController = TextEditingController();
   final _cookTimeController = TextEditingController();
@@ -58,10 +60,37 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   String _difficulty = 'Easy';
   String? _coverImageUrl;
   final List<RecipeStep> _steps = [];
-  final List<String> _equipment = []; // ADD THIS
-  final List<String> _additionalIngredients = []; // ADD THIS
+  final List<String> _equipment = [];
+  final List<String> _additionalIngredients = [];
 
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.existingRecipe != null) {
+      final recipe = widget.existingRecipe!;
+      _nameController.text = recipe.name;
+      _descriptionController.text = recipe.description;
+      _categoryController.text = recipe.category;
+      _prepTimeController.text = recipe.prepTimeMinutes.toString();
+      _cookTimeController.text = recipe.cookTimeMinutes.toString();
+      _servingsController.text = recipe.servings.toString();
+      _notesController.text = recipe.notes;
+      _difficulty = recipe.difficulty;
+      _coverImageUrl = recipe.coverImageUrl;
+      _selectedTags.addAll(recipe.tags);
+      _equipment.addAll(recipe.equipment);
+      _additionalIngredients.addAll(
+        recipe.ingredients.where(
+          (ing) =>
+              !recipe.steps.any((step) => step.stepIngredients.contains(ing)),
+        ),
+      );
+      _steps.addAll(recipe.steps);
+    }
+  }
 
   @override
   void dispose() {
@@ -98,6 +127,50 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     }
   }
 
+  /// Builds the ingredientList from step ingredients + additional ingredients
+  List<Ingredient> _buildIngredientList() {
+    final List<Ingredient> result = [];
+
+    // Parse step ingredients
+    for (var step in _steps) {
+      for (var ing in step.stepIngredients) {
+        final parsed = _parseIngredientString(ing);
+        if (parsed != null) {
+          result.add(parsed);
+        }
+      }
+    }
+
+    // Parse additional ingredients
+    for (var ing in _additionalIngredients) {
+      final parsed = _parseIngredientString(ing);
+      if (parsed != null) {
+        result.add(parsed);
+      }
+    }
+
+    return result;
+  }
+
+  /// Parses "Name | Amount | Unit" format into Ingredient object
+  Ingredient? _parseIngredientString(String ingredientStr) {
+    final parts = ingredientStr.split('|').map((e) => e.trim()).toList();
+    if (parts.isEmpty) return null;
+
+    final name = parts[0];
+    final quantity = parts.length > 1
+        ? double.tryParse(parts[1].replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0
+        : 0.0;
+    final unit = parts.length > 2 ? parts[2] : '';
+
+    return Ingredient(
+      name: name,
+      quantity: quantity,
+      unit: unit,
+      rawText: ingredientStr,
+    );
+  }
+
   Future<void> _saveRecipe() async {
     if (!_formKey.currentState!.validate()) return;
     _coverImageUrl ??= 'https://picsum.photos/300/200';
@@ -112,21 +185,24 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     allIngredients.addAll(_additionalIngredients);
 
     final recipe = Recipe(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          widget.existingRecipe?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameController.text,
-      description: _descriptionController.text, // ADD THIS
+      description: _descriptionController.text,
       coverImageUrl: _coverImageUrl!,
       category: _categoryController.text,
       tags: _selectedTags,
-      equipment: _equipment, // ADD THIS
-      ingredients: allIngredients.toList()..sort(), // ADD THIS
+      equipment: _equipment,
+      ingredients: allIngredients.toList()..sort(),
+      ingredientList: _buildIngredientList(), // <-- FIXED: Added this
       prepTimeMinutes: int.tryParse(_prepTimeController.text) ?? 0,
       cookTimeMinutes: int.tryParse(_cookTimeController.text) ?? 0,
       servings: int.tryParse(_servingsController.text) ?? 1,
       difficulty: _difficulty,
       notes: _notesController.text,
       steps: _steps,
-      createdAt: DateTime.now(),
+      createdAt: widget.existingRecipe?.createdAt ?? DateTime.now(),
     );
 
     await _firestoreService.saveRecipe(recipe);
@@ -147,7 +223,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFD4B896),
       appBar: AppBar(
-        title: const Text('Create Recipe'),
+        title: Text(
+          widget.existingRecipe != null ? 'Edit Recipe' : 'Create Recipe',
+        ),
         backgroundColor: const Color(0xFF8B4513),
         actions: [
           if (_steps.isNotEmpty)
@@ -217,66 +295,42 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                     )
                                   : null,
                             ),
-                            child: Stack(
-                              children: [
-                                if (_coverImageUrl == null)
-                                  const Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.add_photo_alternate,
-                                          size: 50,
-                                          color: Colors.brown,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          'Add Cover Photo',
-                                          style: TextStyle(color: Colors.brown),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                // Macy watermark
-                                if (_coverImageUrl != null)
-                                  Positioned(
-                                    bottom: 8,
-                                    right: 8,
-                                    child: Opacity(
-                                      opacity: 0.2,
-                                      child: Image.asset(
-                                        'assets/images/icons/macy template.png',
-                                        height: 80,
+                            child: _coverImageUrl == null
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.add_photo_alternate,
+                                        size: 50,
+                                        color: Colors.brown.shade300,
                                       ),
-                                    ),
-                                  ),
-                              ],
-                            ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Add Cover Photo',
+                                        style: TextStyle(
+                                          color: Colors.brown.shade400,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : null,
                           ),
                         ),
+                        const SizedBox(width: 16),
 
-                        const SizedBox(width: 20),
-
+                        // Name + Description (right)
                         Expanded(
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               TextFormField(
                                 controller: _nameController,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                                decoration: InputDecoration(
+                                decoration: const InputDecoration(
                                   labelText: 'Recipe Name',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF8B4513),
-                                      width: 2,
-                                    ),
-                                  ),
+                                  border: OutlineInputBorder(),
+                                  filled: true,
+                                  fillColor: Color(0xCCFFFFFF),
                                 ),
                                 validator: (v) =>
                                     v?.isEmpty ?? true ? 'Required' : null,
@@ -284,26 +338,17 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _descriptionController,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                                decoration: InputDecoration(
+                                decoration: const InputDecoration(
                                   labelText: 'Description',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF8B4513),
-                                      width: 2,
-                                    ),
-                                  ),
+                                  border: OutlineInputBorder(),
+                                  filled: true,
+                                  fillColor: Color(0xCCFFFFFF),
                                 ),
-                                maxLines: 3,
-                                validator: (v) =>
-                                    v?.isEmpty ?? true ? 'Required' : null,
+                                maxLines: 4,
                               ),
                               const SizedBox(height: 16),
+
+                              // Category dropdown
                               DropdownButtonFormField<String>(
                                 value: _categoryController.text.isEmpty
                                     ? null
@@ -311,37 +356,23 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                                 decoration: const InputDecoration(
                                   labelText: 'Category',
                                   border: OutlineInputBorder(),
+                                  filled: true,
+                                  fillColor: Color(0xCCFFFFFF),
                                 ),
-                                items: _categoryOptions.map((category) {
+                                items: _categoryOptions.map((cat) {
                                   return DropdownMenuItem(
-                                    value: category,
-                                    child: Text(category),
+                                    value: cat,
+                                    child: Text(cat),
                                   );
                                 }).toList(),
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    _categoryController.text = value;
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    setState(
+                                      () => _categoryController.text = v,
+                                    );
                                   }
                                 },
                               ),
-                              const SizedBox(height: 16),
-                              DropdownButtonFormField<String>(
-                                value: _difficulty,
-                                decoration: const InputDecoration(
-                                  labelText: 'Difficulty',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: ['Easy', 'Medium', 'Hard']
-                                    .map(
-                                      (d) => DropdownMenuItem(
-                                        value: d,
-                                        child: Text(d),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _difficulty = v!),
-                              ),
                             ],
                           ),
                         ),
@@ -349,184 +380,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 24),
-
-                // Tags + Equipment Card (side-by-side)
-                Card(
-                  color: const Color(0x70F5E6D3),
-                  elevation: 7.0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Tags (left 50%)
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Text(
-                                    'Tags:',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.add_circle,
-                                      color: Color(0xFF8B4513),
-                                    ),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) {
-                                          final controller =
-                                              TextEditingController();
-                                          return AlertDialog(
-                                            title: const Text('Add Tag'),
-                                            content: TextField(
-                                              controller: controller,
-                                              textCapitalization:
-                                                  TextCapitalization.sentences,
-                                              decoration: const InputDecoration(
-                                                hintText: 'New tag',
-                                              ),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(context),
-                                                child: const Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  if (controller
-                                                      .text
-                                                      .isNotEmpty) {
-                                                    setState(() {
-                                                      _tagOptions.add(
-                                                        controller.text,
-                                                      );
-                                                    });
-                                                    Navigator.pop(context);
-                                                  }
-                                                },
-                                                child: const Text('Add'),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 80,
-                                ),
-                                child: SingleChildScrollView(
-                                  child: Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: _tagOptions.map((tag) {
-                                      final isSelected = _selectedTags.contains(
-                                        tag,
-                                      );
-                                      return FilterChip(
-                                        label: Text(tag),
-                                        selected: isSelected,
-                                        onSelected: (selected) {
-                                          setState(() {
-                                            if (selected) {
-                                              _selectedTags.add(tag);
-                                            } else {
-                                              _selectedTags.remove(tag);
-                                            }
-                                          });
-                                        },
-                                        selectedColor: const Color(
-                                          0xFF8B4513,
-                                        ).withOpacity(0.3),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(width: 16),
-
-                        // Equipment (right 50%)
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Text(
-                                    'Equipment:',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.add_circle,
-                                      color: Color(0xFF8B4513),
-                                    ),
-                                    onPressed: _addEquipment,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 80,
-                                ),
-                                child: SingleChildScrollView(
-                                  child: Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: _equipment.map((item) {
-                                      return Chip(
-                                        label: Text(item),
-                                        onDeleted: () {
-                                          setState(
-                                            () => _equipment.remove(item),
-                                          );
-                                        },
-                                        deleteIcon: const Icon(
-                                          Icons.close,
-                                          size: 16,
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 16),
 
-                // Times and Servings Card
+                // Time/Servings/Difficulty Row
                 Card(
                   color: const Color(0x80F5E6D3),
                   elevation: 7.0,
@@ -541,42 +397,65 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                           child: TextFormField(
                             controller: _prepTimeController,
                             decoration: const InputDecoration(
-                              labelText: 'Prep (min)',
+                              labelText: 'Prep Time (min)',
                               border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Color(0xCCFFFFFF),
                             ),
                             keyboardType: TextInputType.number,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: TextFormField(
                             controller: _cookTimeController,
                             decoration: const InputDecoration(
-                              labelText: 'Cook (min)',
+                              labelText: 'Cook Time (min)',
                               border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Color(0xCCFFFFFF),
                             ),
                             keyboardType: TextInputType.number,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: TextFormField(
                             controller: _servingsController,
                             decoration: const InputDecoration(
                               labelText: 'Servings',
                               border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Color(0xCCFFFFFF),
                             ),
                             keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _difficulty,
+                            decoration: const InputDecoration(
+                              labelText: 'Difficulty',
+                              border: OutlineInputBorder(),
+                              filled: true,
+                              fillColor: Color(0xCCFFFFFF),
+                            ),
+                            items: ['Easy', 'Medium', 'Hard'].map((d) {
+                              return DropdownMenuItem(value: d, child: Text(d));
+                            }).toList(),
+                            onChanged: (v) {
+                              if (v != null) setState(() => _difficulty = v);
+                            },
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 16),
 
-                // Notes Card
+                // Tags Section
                 Card(
                   color: const Color(0x80F5E6D3),
                   elevation: 7.0,
@@ -585,106 +464,242 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: TextFormField(
-                      controller: _notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Personal Notes',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tags',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _tagOptions.map((tag) {
+                            final isSelected = _selectedTags.contains(tag);
+                            return FilterChip(
+                              label: Text(tag),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  if (selected) {
+                                    _selectedTags.add(tag);
+                                  } else {
+                                    _selectedTags.remove(tag);
+                                  }
+                                });
+                              },
+                              selectedColor: const Color(0xFF8B4513),
+                              labelStyle: TextStyle(
+                                color: isSelected ? Colors.white : Colors.black,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 16),
 
-                const SizedBox(height: 24),
+                // Equipment Section
+                Card(
+                  color: const Color(0x80F5E6D3),
+                  elevation: 7.0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Equipment',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ..._equipment.map((eq) {
+                              return Chip(
+                                label: Text(eq),
+                                deleteIcon: const Icon(Icons.close, size: 18),
+                                onDeleted: () {
+                                  setState(() => _equipment.remove(eq));
+                                },
+                              );
+                            }),
+                            ActionChip(
+                              avatar: const Icon(Icons.add, size: 18),
+                              label: const Text('Add'),
+                              onPressed: _addEquipment,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // Steps Section
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Steps',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                Card(
+                  color: const Color(0x80F5E6D3),
+                  elevation: 7.0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Steps',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: _addStep,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Step'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8B4513),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (_steps.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Center(
+                              child: Text(
+                                'No steps yet. Add your first step!',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        else
+                          ReorderableListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _steps.length,
+                            onReorder: (oldIndex, newIndex) {
+                              setState(() {
+                                if (newIndex > oldIndex) newIndex--;
+                                final step = _steps.removeAt(oldIndex);
+                                _steps.insert(newIndex, step);
+                                // Update step numbers
+                                for (var i = 0; i < _steps.length; i++) {
+                                  _steps[i] = RecipeStep(
+                                    stepNumber: i + 1,
+                                    title: _steps[i].title,
+                                    instructions: _steps[i].instructions,
+                                    notes: _steps[i].notes,
+                                    pictures: _steps[i].pictures,
+                                    videoSegment: _steps[i].videoSegment,
+                                    timers: _steps[i].timers,
+                                    stepIngredients: _steps[i].stepIngredients,
+                                  );
+                                }
+                              });
+                            },
+                            itemBuilder: (context, index) {
+                              final step = _steps[index];
+                              final ingredientCount =
+                                  step.stepIngredients.length;
+                              final timerCount = step.timers.length;
+                              final hasVideo = step.videoSegment != null;
+                              final hasPictures = step.pictures.isNotEmpty;
+
+                              return Card(
+                                key: ValueKey('step_$index'),
+                                color: index % 2 == 0
+                                    ? const Color(0xCCFFF8E7)
+                                    : const Color(0xCCF5E6D3),
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: ListTile(
+                                  leading: ReorderableDragStartListener(
+                                    index: index,
+                                    child: const Icon(Icons.drag_handle),
+                                  ),
+                                  title: Text(
+                                    step.title.isEmpty
+                                        ? 'Step ${index + 1}'
+                                        : 'Step ${index + 1}: ${step.title}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: Row(
+                                    children: [
+                                      if (hasPictures)
+                                        const Padding(
+                                          padding: EdgeInsets.only(right: 8),
+                                          child: Text('📷'),
+                                        ),
+                                      if (hasVideo)
+                                        const Padding(
+                                          padding: EdgeInsets.only(right: 8),
+                                          child: Text('🎥'),
+                                        ),
+                                      if (timerCount > 0)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          child: Text('⏲️$timerCount'),
+                                        ),
+                                      if (ingredientCount > 0)
+                                        Text('🥕$ingredientCount'),
+                                    ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit),
+                                        onPressed: () => _editStep(index),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () =>
+                                            _confirmDeleteStep(index),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () => _editStep(index),
+                                ),
+                              );
+                            },
+                          ),
+                      ],
                     ),
-                    ElevatedButton.icon(
-                      onPressed: _addStep,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Step'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B4513),
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // Steps List with preview counts
-                ..._steps.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final step = entry.value;
-                  return Card(
-                    color: index % 2 == 0
-                        ? const Color(0x95FFF8E7) // Light color for even rows
-                        : const Color(0x95F5E6D3),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(0xFF8B4513),
-                        child: Text('${index + 1}'),
-                      ),
-                      title: Text(
-                        step.title.isEmpty ? 'Untitled Step' : step.title,
-                      ),
-                      subtitle: Row(
-                        children: [
-                          if (step.pictures.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Text('📷${step.pictures.length}'),
-                            ),
-                          if (step.videoSegment != null)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: const Text('🎥1'),
-                            ),
-                          if (step.timers.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Text('⏲️${step.timers.length}'),
-                            ),
-                          if (step.stepIngredients.isNotEmpty)
-                            Text('🥕${step.stepIngredients.length}'),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.edit,
-                              color: Color(0xFF8B4513),
-                            ),
-                            onPressed: () => _editStep(index),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _confirmDeleteStep(index),
-                          ),
-                        ],
-                      ),
-                      onTap: () => _editStep(index),
-                    ),
-                  );
-                }),
-
-                const SizedBox(height: 24),
-
-                // Master Ingredients Section
-                if (_steps.isNotEmpty)
+                // Master Ingredients List (read-only aggregation)
+                if (_steps.isNotEmpty || _additionalIngredients.isNotEmpty)
                   Card(
                     color: const Color(0x80F5E6D3),
                     elevation: 7.0,
@@ -696,109 +711,128 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Ingredients',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                '${_getAllIngredients().length} items',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 300),
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _getAllIngredients().length,
-                              itemBuilder: (_, i) {
-                                final ing = _getAllIngredients()[i];
-                                final stepNumber = _getStepNumberForIngredient(
-                                  ing,
-                                );
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(child: Text('${i + 1}. $ing')),
-                                      if (stepNumber != null)
-                                        GestureDetector(
-                                          onTap: () =>
-                                              _jumpToStep(stepNumber - 1),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF8B4513),
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              'Step $stepNumber',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 8),
                           const Text(
-                            'Garnishes & Optional Additions',
+                            'All Ingredients',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ..._additionalIngredients.asMap().entries.map((e) {
-                            return ListTile(
-                              dense: true,
-                              title: Text(e.value),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () => setState(
-                                  () => _additionalIngredients.removeAt(e.key),
-                                ),
+                          ..._getAllIngredients().map((ing) {
+                            final stepNum = _getStepNumberForIngredient(ing);
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.fiber_manual_record,
+                                    size: 8,
+                                    color: Color(0xFF8B4513),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(ing)),
+                                  if (stepNum != null)
+                                    GestureDetector(
+                                      onTap: () => _jumpToStep(stepNum - 1),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF8B4513),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Step $stepNum',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             );
                           }),
-                          ElevatedButton.icon(
-                            onPressed: _addAdditionalIngredient,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Garnish/Optional'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8B4513),
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
                         ],
                       ),
                     ),
                   ),
+                const SizedBox(height: 16),
+
+                // Additional Ingredients Section
+                Card(
+                  color: const Color(0x80F5E6D3),
+                  elevation: 7.0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Garnishes & Optional Ingredients',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._additionalIngredients.asMap().entries.map((e) {
+                          return ListTile(
+                            dense: true,
+                            title: Text(e.value),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => setState(
+                                () => _additionalIngredients.removeAt(e.key),
+                              ),
+                            ),
+                          );
+                        }),
+                        ElevatedButton.icon(
+                          onPressed: _addAdditionalIngredient,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Garnish/Optional'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8B4513),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Notes Section
+                const SizedBox(height: 16),
+                Card(
+                  color: const Color(0x80F5E6D3),
+                  elevation: 7.0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextFormField(
+                      controller: _notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Recipe Notes',
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Color(0xCCFFFFFF),
+                      ),
+                      maxLines: 4,
+                    ),
+                  ),
+                ),
 
                 const SizedBox(height: 100),
               ],
@@ -816,12 +850,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       _steps.add(
         RecipeStep(
           stepNumber: _steps.length + 1,
-          title: '', // CHANGE TO EMPTY STRING
+          title: '',
           instructions: '',
           notes: '',
           pictures: [],
           timers: [],
-          stepIngredients: [], // ADD THIS
+          stepIngredients: [],
         ),
       );
     });

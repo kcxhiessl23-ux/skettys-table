@@ -162,7 +162,7 @@ class _CookModeScreenState extends State<CookModeScreen> {
                 TextButton.icon(
                   onPressed: _resetSegmentPlayback,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Reset/Fix Load'),
+                  label: const Text('Play Segment'),
                 ),
                 TextButton(
                   onPressed: () {

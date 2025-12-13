@@ -1,13 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'recipe_model.dart';
 import 'media_model.dart';
+import 'sample_recipes.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final CollectionReference _recipes = FirebaseFirestore.instance.collection(
+    'recipes',
+  );
 
   // Save recipe
   Future<void> saveRecipe(Recipe recipe) async {
     await _db.collection('recipes').doc(recipe.id).set(recipe.toMap());
+  }
+
+  Future<void> loadSampleRecipes() async {
+    final samples = SampleRecipes.getSampleRecipes();
+    for (var recipe in samples) {
+      await saveRecipe(
+        recipe,
+      ); // <--- This will now work as it's a class method
+    }
   }
 
   // Load all recipes

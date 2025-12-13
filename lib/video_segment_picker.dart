@@ -153,7 +153,7 @@ class _VideoSegmentPickerState extends State<VideoSegmentPicker> {
                   child: TextField(
                     controller: _urlController,
                     decoration: const InputDecoration(
-                      labelText: 'YouTube URL',
+                      labelText: 'Paste a YouTube URL Here',
                       hintText: 'https://www.youtube.com/watch?v=...',
                       border: OutlineInputBorder(),
                     ),

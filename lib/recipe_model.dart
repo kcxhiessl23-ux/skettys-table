@@ -1,12 +1,45 @@
+class Ingredient {
+  final String name; // e.g., 'Flour', 'Salt'
+  final double quantity; // e.g., 2.0, 1.0
+  final String unit; // e.g., 'cup(s)', 'tsp'
+  final String rawText; // e.g., '2 cups of all-purpose flour'
+
+  Ingredient({
+    required this.name,
+    required this.quantity,
+    required this.unit,
+    required this.rawText,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'quantity': quantity,
+      'unit': unit,
+      'rawText': rawText,
+    };
+  }
+
+  factory Ingredient.fromMap(Map<String, dynamic> map) {
+    return Ingredient(
+      name: map['name'] ?? '',
+      quantity: (map['quantity'] as num?)?.toDouble() ?? 0.0,
+      unit: map['unit'] ?? '',
+      rawText: map['rawText'] ?? '',
+    );
+  }
+}
+
 class Recipe {
   final String id;
   final String name;
-  final String description; // ADD THIS
+  final String description;
   final String coverImageUrl;
   final String category;
   final List<String> tags;
-  final List<String> equipment; // ADD THIS
-  final List<String> ingredients; // ADD THIS
+  final List<String> equipment;
+  final List<String> ingredients; // (Keep for backward compatibility/display)
+  final List<Ingredient> ingredientList; // <-- NEW: For Scaling/Aggregation
   final int prepTimeMinutes;
   final int cookTimeMinutes;
   final int servings;
@@ -18,12 +51,13 @@ class Recipe {
   Recipe({
     required this.id,
     required this.name,
-    required this.description, // ADD THIS
+    required this.description,
     required this.coverImageUrl,
     required this.category,
     required this.tags,
-    required this.equipment, // ADD THIS
-    required this.ingredients, // ADD THIS
+    required this.equipment,
+    required this.ingredients,
+    required this.ingredientList, // <-- ADD THIS
     required this.prepTimeMinutes,
     required this.cookTimeMinutes,
     required this.servings,
@@ -37,12 +71,15 @@ class Recipe {
     return {
       'id': id,
       'name': name,
-      'description': description, // ADD THIS
+      'description': description,
       'coverImageUrl': coverImageUrl,
       'category': category,
       'tags': tags,
-      'equipment': equipment, // ADD THIS
-      'ingredients': ingredients, // ADD THIS
+      'equipment': equipment,
+      'ingredients': ingredients,
+      'ingredientList': ingredientList
+          .map((i) => i.toMap())
+          .toList(), // ADD THIS
       'prepTimeMinutes': prepTimeMinutes,
       'cookTimeMinutes': cookTimeMinutes,
       'servings': servings,
@@ -57,12 +94,17 @@ class Recipe {
     return Recipe(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
-      description: map['description'] ?? '', // ADD THIS
+      description: map['description'] ?? '',
       coverImageUrl: map['coverImageUrl'] ?? '',
       category: map['category'] ?? '',
       tags: List<String>.from(map['tags'] ?? []),
-      equipment: List<String>.from(map['equipment'] ?? []), // ADD THIS
-      ingredients: List<String>.from(map['ingredients'] ?? []), // ADD THIS
+      equipment: List<String>.from(map['equipment'] ?? []),
+      ingredients: List<String>.from(map['ingredients'] ?? []),
+      ingredientList:
+          (map['ingredientList'] as List<dynamic>?) // ADD THIS
+              ?.map((i) => Ingredient.fromMap(i as Map<String, dynamic>))
+              .toList() ??
+          [],
       prepTimeMinutes: map['prepTimeMinutes'] ?? 0,
       cookTimeMinutes: map['cookTimeMinutes'] ?? 0,
       servings: map['servings'] ?? 0,

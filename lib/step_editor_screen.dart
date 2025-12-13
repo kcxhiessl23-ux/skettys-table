@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'recipe_model.dart';
 import 'video_segment_picker.dart';
 import 'macinna_fab.dart';
-import 'ingredient_input_widget.dart';
-import 'ingredient_data.dart';
+import 'ingredient_data.dart'; // Keep this one reference to ingredient_data
+
+// -----------------------------------------------------------------------------
+// STEP EDITOR SCREEN
+// -----------------------------------------------------------------------------
 
 class StepEditorScreen extends StatefulWidget {
   final RecipeStep step;
@@ -20,6 +23,7 @@ class StepEditorScreen extends StatefulWidget {
 }
 
 class _StepEditorScreenState extends State<StepEditorScreen> {
+  // 1. STATE VARIABLES: Declared at the top of the class
   late TextEditingController _titleController;
   late TextEditingController _instructionsController;
   late TextEditingController _notesController;
@@ -29,16 +33,22 @@ class _StepEditorScreenState extends State<StepEditorScreen> {
   late List<StepTimer> _timers;
   late List<String> _stepIngredients;
 
+  // Initialized fields
   final bool _isLoading = false;
+  late bool _showChips;
 
   @override
   void initState() {
     super.initState();
+
+    // 2. INITIALIZATION: All controllers and late fields are initialized here
     _titleController = TextEditingController(text: widget.step.title);
     _instructionsController = TextEditingController(
       text: widget.step.instructions,
     );
     _notesController = TextEditingController(text: widget.step.notes);
+
+    _showChips = true;
     _pictures = List.from(widget.step.pictures);
     _timers = List.from(widget.step.timers);
     _stepIngredients = List.from(widget.step.stepIngredients);
@@ -47,13 +57,17 @@ class _StepEditorScreenState extends State<StepEditorScreen> {
 
   @override
   void dispose() {
+    // 3. CLEANUP: Dispose all controllers
     _titleController.dispose();
     _instructionsController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
+  // 4. HELPER METHODS: Must be outside of initState/dispose/build
+
   Future<void> _addPicture() async {
+    // This function body was duplicated and incorrectly nested. Simplified below:
     // Skip file upload on web - just use placeholder
     setState(() {
       _pictures.add(
@@ -148,6 +162,7 @@ class _StepEditorScreenState extends State<StepEditorScreen> {
     Navigator.pop(context, updatedStep);
   }
 
+  // 5. BUILD METHOD: The mandatory UI definition
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -165,7 +180,6 @@ class _StepEditorScreenState extends State<StepEditorScreen> {
           ),
         ],
       ),
-
       body: Stack(
         children: [
           // Macy background
@@ -325,8 +339,6 @@ class _StepEditorScreenState extends State<StepEditorScreen> {
                     const SizedBox(height: 24),
 
                     // Timers Section
-                    // Notes for the Time Section - Kenny
-                    //  Add hh/mm/ss in wheel style picker for smooth tablet interface
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -383,17 +395,19 @@ class _StepEditorScreenState extends State<StepEditorScreen> {
                         ),
                         ElevatedButton.icon(
                           onPressed: () async {
-                            await showDialog(
-                              context: context,
-                              builder: (_) => _IngredientInputDialog(
-                                onIngredientAdded: (ingredient) {
-                                  setState(
-                                    () => _stepIngredients.add(ingredient),
-                                  );
-                                },
-                              ),
-                            );
-                            setState(() {});
+                            final newIngredients =
+                                await showDialog<List<String>>(
+                                  context: context,
+                                  builder: (dialogContext) =>
+                                      const _IngredientInputDialog(),
+                                );
+
+                            if (newIngredients != null &&
+                                newIngredients.isNotEmpty) {
+                              setState(() {
+                                _stepIngredients.addAll(newIngredients);
+                              });
+                            }
                           },
                           icon: const Icon(Icons.restaurant),
                           label: const Text('Add'),
@@ -433,17 +447,18 @@ class _StepEditorScreenState extends State<StepEditorScreen> {
           const SizedBox(height: 24),
         ],
       ),
-
       floatingActionButton: const MacinnaFAB(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
   }
 }
 
-class _IngredientInputDialog extends StatefulWidget {
-  final Function(String) onIngredientAdded;
+// -----------------------------------------------------------------------------
+// INGREDIENT INPUT DIALOG (Correctly placed outside _StepEditorScreenState)
+// -----------------------------------------------------------------------------
 
-  const _IngredientInputDialog({required this.onIngredientAdded});
+class _IngredientInputDialog extends StatefulWidget {
+  const _IngredientInputDialog();
 
   @override
   State<_IngredientInputDialog> createState() => _IngredientInputDialogState();
@@ -461,6 +476,13 @@ class _IngredientInputDialogState extends State<_IngredientInputDialog> {
   final List<String> _addedIngredients = [];
 
   @override
+  void initState() {
+    super.initState();
+    _filteredIngredients = IngredientData.getTopIngredients(10);
+    _showChips = true;
+  }
+
+  @override
   void dispose() {
     _ingredientController.dispose();
     _amountController.dispose();
@@ -472,13 +494,13 @@ class _IngredientInputDialogState extends State<_IngredientInputDialog> {
   void _onIngredientChanged(String value) {
     setState(() {
       if (value.isEmpty) {
-        _filteredIngredients = [];
-        _showChips = false;
+        _filteredIngredients = IngredientData.getTopIngredients(20);
+        _showChips = true; // Show top 10 by default
       } else {
-        _filteredIngredients = IngredientData.ingredients
-            .where((ing) => ing.toLowerCase().contains(value.toLowerCase()))
-            .take(6)
-            .toList();
+        _filteredIngredients = IngredientData.searchIngredients(
+          value,
+          limit: 10,
+        );
         _showChips = _filteredIngredients.isNotEmpty;
       }
     });
@@ -493,45 +515,6 @@ class _IngredientInputDialogState extends State<_IngredientInputDialog> {
     _amountFocus.requestFocus();
   }
 
-  void _addIngredient() {
-    final ingredient = _ingredientController.text.trim();
-    final amount = _amountController.text.trim();
-
-    if (ingredient.isEmpty || amount.isEmpty) return;
-
-    final exists = IngredientData.ingredients.any(
-      (i) => i.toLowerCase() == ingredient.toLowerCase(),
-    );
-
-    if (!exists) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text('Add "$ingredient"?'),
-          content: const Text('This ingredient is not in the list.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _finalizeAdd(ingredient, amount, false);
-              },
-              child: const Text('Just Use Once'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _finalizeAdd(ingredient, amount, true);
-              },
-              child: const Text('Add & Use'),
-            ),
-          ],
-        ),
-      );
-    } else {
-      _finalizeAdd(ingredient, amount, false);
-    }
-  }
-
   void _finalizeAdd(String ingredient, String amount, bool addToList) {
     if (addToList) {
       IngredientData.addIngredient(ingredient);
@@ -539,8 +522,13 @@ class _IngredientInputDialogState extends State<_IngredientInputDialog> {
 
     final formatted = '$ingredient | $amount | $_selectedUnit';
 
+    print('DEBUG: Adding ingredient: $formatted');
+
     setState(() {
       _addedIngredients.add(formatted);
+      print(
+        'DEBUG: _addedIngredients now has ${_addedIngredients.length} items',
+      );
       _ingredientController.clear();
       _amountController.clear();
       _selectedUnit = 'cup';
@@ -551,18 +539,38 @@ class _IngredientInputDialogState extends State<_IngredientInputDialog> {
     _ingredientFocus.requestFocus();
   }
 
-  void _saveAndClose() {
-    for (var ingredient in _addedIngredients) {
-      widget.onIngredientAdded(ingredient);
+  // ... inside class _IngredientInputDialogState
+
+  void _addIngredient() async {
+    final ingredient = _ingredientController.text.trim();
+    final amount = _amountController.text.trim();
+
+    if (ingredient.isEmpty || amount.isEmpty) {
+      return;
     }
-    Navigator.pop(context);
+
+    // *** FIX IS HERE: Changed IngredientData.ingredients to IngredientData.allIngredientsList ***
+    final exists = IngredientData.allIngredientsList.any(
+      (i) => i.toLowerCase() == ingredient.toLowerCase(),
+    );
+
+    print('DEBUG: Ingredient exists in list: $exists');
+
+    _finalizeAdd(ingredient, amount, !exists);
+  } // <-- ADDED THE MISSING CLOSING BRACE FOR _addIngredient HERE
+
+  void _saveAndClose() {
+    print('DEBUG: Saving ${_addedIngredients.length} ingredients');
+    print('DEBUG: Ingredients: $_addedIngredients');
+    Navigator.pop(context, _addedIngredients);
   }
 
-  @override
+  @override // <-- THIS MUST BE HERE
   Widget build(BuildContext context) {
     return Dialog(
       child: Container(
-        width: 800,
+        width: 1000,
+        constraints: const BoxConstraints(maxHeight: 800),
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
@@ -602,14 +610,14 @@ class _IngredientInputDialogState extends State<_IngredientInputDialog> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  flex: 2, // ADD flex to make it wider
+                  flex: 2,
                   child: DropdownButtonFormField<String>(
-                    value: _selectedUnit,
+                    initialValue: _selectedUnit,
                     decoration: const InputDecoration(
                       labelText: 'Unit',
                       border: OutlineInputBorder(),
                     ),
-                    isExpanded: true, // ADD THIS
+                    isExpanded: true,
                     items: IngredientData.units
                         .map((u) => DropdownMenuItem(value: u, child: Text(u)))
                         .toList(),
@@ -629,26 +637,34 @@ class _IngredientInputDialogState extends State<_IngredientInputDialog> {
             // Chips
             // Chips
             if (_showChips) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _filteredIngredients.map((ingredient) {
-                  return ActionChip(
-                    label: Text(ingredient),
-                    onPressed: () => _selectIngredient(ingredient),
-                    backgroundColor: const Color(0xAA8B4513),
-                  );
-                }).toList(),
+              // Removed extra vertical space here
+              SizedBox(
+                height: 100, // Explicitly set height
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _filteredIngredients.map((ingredient) {
+                      return ActionChip(
+                        label: Text(ingredient),
+                        onPressed: () => _selectIngredient(ingredient),
+                        // Retaining your custom colors
+                        backgroundColor: const Color(0xAA8B4513),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ],
 
+            // Adjusted vertical spacing
             const SizedBox(height: 16),
             const Divider(),
 
             // Added ingredients list
             Expanded(
               child: ListView.builder(
+                // ... rest of ListView.builder ...
                 itemCount: _addedIngredients.length,
                 itemBuilder: (_, i) {
                   return ListTile(

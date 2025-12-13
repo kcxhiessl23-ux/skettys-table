@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'ingredient_data.dart';
+// OR if the file is in the same directory:
 
 class IngredientInputWidget extends StatefulWidget {
   final Function(String) onIngredientAdded;
@@ -35,7 +36,7 @@ class _IngredientInputWidgetState extends State<IngredientInputWidget> {
         _filteredIngredients = [];
         _showChips = false;
       } else {
-        _filteredIngredients = IngredientData.ingredients
+        _filteredIngredients = IngredientData.allIngredientsList
             .where((ing) => ing.toLowerCase().contains(value.toLowerCase()))
             .take(6)
             .toList();
@@ -65,7 +66,7 @@ class _IngredientInputWidgetState extends State<IngredientInputWidget> {
     }
 
     // Check if ingredient exists
-    final exists = IngredientData.ingredients.any(
+    final exists = IngredientData.allIngredientsList.any(
       (i) => i.toLowerCase() == ingredient.toLowerCase(),
     );
 
@@ -163,7 +164,7 @@ class _IngredientInputWidgetState extends State<IngredientInputWidget> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedUnit,
+                    initialValue: _selectedUnit,
                     decoration: const InputDecoration(
                       labelText: 'Unit',
                       border: OutlineInputBorder(),

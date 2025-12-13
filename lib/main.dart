@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'create_recipe_screen.dart';
-import 'cook_mode_screen.dart';
 import 'firestore_service.dart';
 import 'recipe_model.dart';
 import 'media_model.dart';
@@ -13,6 +12,9 @@ import 'recipes_page.dart';
 import 'media_search_overlay.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'splash_screen.dart';
+import 'recipe_detail_screen.dart';
+import 'meal_planning_hub.dart';
+import 'shopping_cart_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -276,6 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoading = true);
     _recipes = await _firestoreService.loadRecipes();
     _media = await _firestoreService.loadAllMedia();
+    _firestoreService.loadSampleRecipes();
     _pickRecipeOfTheDay();
     setState(() => _isLoading = false);
   }
@@ -320,16 +323,15 @@ class _HomeScreenState extends State<HomeScreen> {
           : Stack(
               children: [
                 // Macy background image
-                Positioned(
+                Positioned.fill(
                   bottom: 0,
                   left: 0,
                   right: 0,
                   child: Opacity(
-                    opacity: 0.75,
+                    opacity: 0.50,
                     child: Image.asset(
-                      'assets/images/macy_logo_floor.png',
-                      width: MediaQuery.of(context).size.width * 0.75,
-                      fit: BoxFit.contain,
+                      'assets/images/backgrounds/bgHome.png',
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
@@ -436,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => CookModeScreen(
+                                    builder: (_) => RecipeDetailScreen(
                                       recipe: _recipeOfTheDay!,
                                     ),
                                   ),
@@ -545,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) =>
-                                          CookModeScreen(recipe: item),
+                                          RecipeDetailScreen(recipe: item),
                                     ),
                                   );
                                 }
@@ -634,9 +636,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.shopping_cart),
-            label: 'Shopping',
+            label: 'Kitchen',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Cook'),
+          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Cart'),
         ],
         onTap: (index) {
           if (index == 1) {
@@ -650,18 +652,20 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(builder: (_) => const RecipesPage()),
             );
           } else if (index == 3) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Shopping list coming soon')),
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MealPlanningHub()),
             );
           } else if (index == 4) {
-            if (_recipes.isNotEmpty) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CookModeScreen(recipe: _recipes.first),
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ShoppingCartScreen(
+                  recipes: [],
+                  servingsOverrides: {},
                 ),
-              );
-            }
+              ),
+            );
           }
         },
       ),

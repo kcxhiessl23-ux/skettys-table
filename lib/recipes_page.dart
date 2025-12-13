@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'recipe_model.dart';
 import 'firestore_service.dart';
 import 'cook_mode_screen.dart';
+import 'recipe_detail_screen.dart'; // Ensure you have this file for detailed view
 
 class RecipesPage extends StatefulWidget {
   const RecipesPage({super.key});
@@ -20,6 +21,7 @@ class _RecipesPageState extends State<RecipesPage> {
   final List<String> _selectedTags = [];
   bool _isLoading = true;
 
+  // Retaining original categories and tags
   final List<String> _categories = [
     'All',
     'Pasta',
@@ -61,6 +63,7 @@ class _RecipesPageState extends State<RecipesPage> {
 
   Future<void> _loadRecipes() async {
     setState(() => _isLoading = true);
+    // Assuming FirestoreService.loadRecipes() fetches List<Recipe>
     _allRecipes = await _firestoreService.loadRecipes();
     _applyFilters();
     setState(() => _isLoading = false);
@@ -88,73 +91,81 @@ class _RecipesPageState extends State<RecipesPage> {
     }).toList();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recipes'),
-        backgroundColor: const Color(0xFF8B4513),
+  // --- NEW: FILTER MODAL FUNCTION ---
+  void _showFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Search bar
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search recipes...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+      builder: (context) {
+        // Use StatefulBuilder to manage the filter state visually inside the modal
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter modalSetState) {
+            return Container(
+              padding: const EdgeInsets.all(24),
+              height: MediaQuery.of(context).size.height * 0.7,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Modal handle
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      height: 4,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    onChanged: (_) => setState(() => _applyFilters()),
                   ),
-                ),
+                  const Text(
+                    'Filter Recipes',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const Divider(height: 24),
 
-                // Category dropdown
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: DropdownButtonFormField<String>(
+                  // Category Dropdown (Retains look and feel)
+                  DropdownButtonFormField<String>(
                     initialValue: _selectedCategory,
                     decoration: InputDecoration(
                       labelText: 'Category',
-                      border: OutlineInputBorder(
+                      labelStyle: const TextStyle(color: Color(0xFF8B4513)),
+                      enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF8B4513)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF8B4513),
+                          width: 2,
+                        ),
                       ),
                     ),
                     items: _categories.map((cat) {
                       return DropdownMenuItem(value: cat, child: Text(cat));
                     }).toList(),
                     onChanged: (value) {
-                      setState(() {
+                      modalSetState(() {
                         _selectedCategory = value;
-                        _applyFilters();
                       });
                     },
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                // Tags section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Filter by tags:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
+                  // Tags section
+                  const Text(
+                    'Filter by tags:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: _tags.map((tag) {
@@ -163,28 +174,93 @@ class _RecipesPageState extends State<RecipesPage> {
                             label: Text(tag),
                             selected: isSelected,
                             onSelected: (selected) {
-                              setState(() {
+                              modalSetState(() {
                                 if (selected) {
                                   _selectedTags.add(tag);
                                 } else {
                                   _selectedTags.remove(tag);
                                 }
-                                _applyFilters();
                               });
                             },
                             selectedColor: const Color(
                               0xFF8B4513,
                             ).withOpacity(0.3),
+                            checkmarkColor: const Color(0xFF8B4513),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? const Color(0xFF8B4513)
+                                  : Colors.black,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                            backgroundColor: Colors.white,
                           );
                         }).toList(),
                       ),
-                    ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      // Apply filters to the main page state once the modal is closed
+    ).whenComplete(() => setState(() => _applyFilters()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white, // Default white background
+      appBar: AppBar(
+        title: const Text(
+          'Recipes',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF8B4513), // Retaining brown color
+        actions: [
+          // Filter Icon Button
+          IconButton(
+            icon: const Icon(Icons.tune, color: Colors.white),
+            onPressed: _showFilterModal, // Calls the filter modal
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // Modernized Search bar
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search recipes...',
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF8B4513),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[100], // Light grey fill
+                      // Highly rounded corners for a soft look
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 10.0,
+                      ),
+                    ),
+                    onChanged: (_) => setState(() => _applyFilters()),
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
-                // Results
+                // Results Grid
                 Expanded(
                   child: _filteredRecipes.isEmpty
                       ? const Center(
@@ -198,69 +274,101 @@ class _RecipesPageState extends State<RecipesPage> {
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 0.8,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                                childAspectRatio: 0.75, // Taller cards
                               ),
                           itemCount: _filteredRecipes.length,
                           itemBuilder: (context, index) {
                             final recipe = _filteredRecipes[index];
+
+                            // --- REVISED RECIPE CARD UI ---
                             return GestureDetector(
                               onTap: () {
+                                // Corrected navigation to detailed info screen
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) =>
-                                        CookModeScreen(recipe: recipe),
+                                        RecipeDetailScreen(recipe: recipe),
                                   ),
                                 );
                               },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  image: DecorationImage(
-                                    image: NetworkImage(recipe.coverImageUrl),
-                                    fit: BoxFit.cover,
-                                  ),
+                              child: Card(
+                                elevation: 4, // Floating effect
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    16,
+                                  ), // Softer corners
                                 ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withOpacity(0.8),
-                                      ],
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Image.network(
+                                            recipe.coverImageUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    const Center(
+                                                      child: Icon(
+                                                        Icons.broken_image,
+                                                      ),
+                                                    ),
+                                          ),
+                                          // Softened Gradient overlay (only on bottom)
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withOpacity(0.5),
+                                                ],
+                                                stops: const [
+                                                  0.7,
+                                                  1.0,
+                                                ], // Start gradient lower
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  alignment: Alignment.bottomLeft,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        recipe.name,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                    // Text moved outside the image/stack area
+                                    Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            recipe.name,
+                                            style: const TextStyle(
+                                              fontWeight:
+                                                  FontWeight.w700, // Bold title
+                                              fontSize: 15,
+                                              color: Colors.black87,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            recipe.category,
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        recipe.category,
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             );
